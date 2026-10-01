@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { categorizeMessage } from '../utils/llmHelper'
-import { calculateUrgency } from '../utils/urgencyScorer'
 import { getRecommendedAction } from '../utils/templates'
 
 function AnalyzePage() {
@@ -29,10 +28,7 @@ function AnalyzePage() {
     
     try {
       // Run categorization (LLM call)
-      const { category, reasoning } = await categorizeMessage(message)
-      
-      // Calculate urgency (rule-based)
-      const urgency = calculateUrgency(message)
+      const { category, urgency, confidence_score, needs_human_review, summary, reasoning } = await categorizeMessage(message)
       
       // Get recommended action (template-based)
       const recommendedAction = getRecommendedAction(category)
@@ -41,6 +37,9 @@ function AnalyzePage() {
         message,
         category,
         urgency,
+        confidence_score,
+        needs_human_review,
+        summary,
         recommendedAction,
         reasoning,
         timestamp: new Date().toISOString()
@@ -140,11 +139,27 @@ function AnalyzePage() {
               <div>
                 <div className="text-sm font-semibold text-gray-600 mb-1">Urgency Level</div>
                 <div className={`inline-block px-4 py-2 rounded-lg font-semibold ${
+                  results.urgency === 'Critical' ? 'bg-red-300 text-red-950' :
                   results.urgency === 'High' ? 'bg-red-200 text-red-900' :
                   results.urgency === 'Medium' ? 'bg-yellow-200 text-yellow-900' :
                   'bg-green-200 text-green-900'
                 }`}>
                   {results.urgency}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm font-semibold text-gray-600 mb-1">Confidence</div>
+                  <div className="font-semibold text-gray-800">{Math.round(results.confidence_score * 100)}%</div>
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-600 mb-1">Routing</div>
+                  <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
+                    results.needs_human_review ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'
+                  }`}>
+                    {results.needs_human_review ? 'Human review required' : 'Automated handling'}
+                  </div>
                 </div>
               </div>
 
@@ -170,7 +185,7 @@ function AnalyzePage() {
             <div className="mt-6 pt-4 border-t border-gray-200">
               <button
                 onClick={() => {
-                  const text = `Category: ${results.category}\nUrgency: ${results.urgency}\nRecommendation: ${results.recommendedAction}\n\nReasoning: ${results.reasoning}`
+                  const text = `Category: ${results.category}\nUrgency: ${results.urgency}\nConfidence: ${Math.round(results.confidence_score * 100)}%\nHuman review: ${results.needs_human_review ? 'Required' : 'Not required'}\nRecommendation: ${results.recommendedAction}\n\nSummary: ${results.summary}`
                   navigator.clipboard.writeText(text)
                   alert('Results copied to clipboard!')
                 }}

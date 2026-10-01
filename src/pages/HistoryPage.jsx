@@ -121,12 +121,18 @@ function HistoryPage() {
                         {item.category}
                       </span>
                       <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
+                        item.urgency === 'Critical' ? 'bg-red-300 text-red-950' :
                         item.urgency === 'High' ? 'bg-red-200 text-red-900' :
                         item.urgency === 'Medium' ? 'bg-yellow-200 text-yellow-900' :
                         'bg-green-200 text-green-900'
                       }`}>
                         {item.urgency} Urgency
                       </span>
+                      {item.needs_human_review && (
+                        <span className="text-xs bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-semibold">
+                          Human review
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="text-gray-400 ml-4">
@@ -143,6 +149,14 @@ function HistoryPage() {
                       <div className="text-sm text-gray-800 bg-white p-3 rounded border border-gray-200">
                         {item.message}
                       </div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-gray-600 mb-1">Confidence</div>
+                      <div className="text-sm text-gray-800">{typeof item.confidence_score === 'number' ? `${Math.round(item.confidence_score * 100)}%` : 'Not recorded'}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-gray-600 mb-1">Summary</div>
+                      <div className="text-sm text-gray-800">{item.summary || item.reasoning}</div>
                     </div>
                     <div>
                       <div className="text-xs font-semibold text-gray-600 mb-1">Recommended Action</div>

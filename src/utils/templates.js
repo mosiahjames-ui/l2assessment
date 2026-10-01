@@ -3,21 +3,19 @@
  */
 
 const actionTemplates = {
-  "Billing Issue": "Ask user to check billing portal.",
-  "Technical Problem": "Suggest user to restart their browser.",
-  "General Inquiry": "Respond with FAQ link.",
-  "Feature Request": "Ask user to check billing portal.",
-  "Unknown": "Review manually."
+  Billing: "Review the relevant invoice or payment details and explain the next steps.",
+  Technical: "Gather reproduction details and investigate the reported behavior.",
+  Account: "Verify the customer's account access and help restore it.",
+  General: "Answer the question or direct the customer to the relevant help resource."
 }
 
 /**
  * Get recommended action for a given category
  * 
  * @param {string} category - The message category
- * @param {string} urgency - The urgency level
  * @returns {string} - Recommended next step
  */
-export function getRecommendedAction(category, urgency) {
+export function getRecommendedAction(category) {
   return actionTemplates[category] || "No recommendation available."
 }
 
