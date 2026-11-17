@@ -49,7 +49,7 @@ export async function categorizeMessage(message) {
     const content = response.choices[0].message.content;
     return parseTriageResponse(content, message);
   } catch (error) {
-    console.warn('Groq API failed, using mock response:', error.message);
+    console.warn('Groq API failed, using keyword fallback:', error.message);
     return getMockCategorization(message);
   }
 }
@@ -63,14 +63,35 @@ function parseTriageResponse(content, message) {
     throw new Error('Groq returned an invalid triage response');
   }
 
+  const review_reasons = getReviewReasons(message, urgency, confidence_score);
+  if (needs_human_review && review_reasons.length === 0) review_reasons.push('AI flagged this message for review');
+
   return {
     category,
     urgency,
     confidence_score,
-    needs_human_review: needs_human_review || confidence_score < 0.75 || urgency === 'Critical' || isAngry(message),
+    needs_human_review: review_reasons.length > 0,
+    review_reasons,
+    source: 'ai',
     summary: summary.trim(),
     reasoning: summary.trim()
   };
+}
+
+// High-risk topics always go to a person, no matter what the AI decides.
+const HIGH_RISK_RULES = [
+  { reason: 'Possible security issue (hacked account, breach, or fraud)', pattern: /\b(hack(ed|er)?|breach|compromised|unauthori[sz]ed|fraud|stolen|phishing|someone (logged|got) into)\b/i },
+  { reason: 'Possible outage affecting many users', pattern: /\b(outage|(server|site|system|service|production) (is )?down|(nobody|no one|none of (our|my) (customers|users)) can)\b/i },
+  { reason: 'Possible data loss', pattern: /\b(data loss|lost (all )?(my |our )?data|deleted (all|everything))\b/i },
+  { reason: 'Legal or chargeback threat', pattern: /\b(lawsuit|lawyer|attorney|sue|legal action|chargeback)\b/i },
+];
+
+function getReviewReasons(message, urgency, confidence_score) {
+  const reasons = HIGH_RISK_RULES.filter(rule => rule.pattern.test(message)).map(rule => rule.reason);
+  if (urgency === 'Critical') reasons.push('Critical urgency');
+  if (confidence_score < 0.75) reasons.push(`Low confidence (${Math.round(confidence_score * 100)}%)`);
+  if (isAngry(message)) reasons.push('Customer appears upset');
+  return reasons;
 }
 
 function isAngry(message) {
@@ -92,9 +113,11 @@ function getMockCategorization(message) {
   const urgent = /urgent|immediately|right now|asap|outage|cannot access|can't access|lost access/.test(lowerMessage);
   const critical = /all users|entire service|data loss|security breach|cannot access.*account/.test(lowerMessage);
   const urgency = critical ? 'Critical' : urgent ? 'High' : category === 'General' ? 'Low' : 'Medium';
-  const confidence_score = category === 'General' ? 0.55 : 0.78;
-  const summary = `Fallback analysis identified a ${category.toLowerCase()} concern${urgent ? ' requiring prompt attention' : ''}.`;
-  const needs_human_review = confidence_score < 0.75 || urgency === 'Critical' || isAngry(message);
+  // A keyword guess is not an AI result, so it never claims high confidence
+  // and always goes to a person.
+  const confidence_score = 0.4;
+  const summary = `AI was unavailable. Keyword-based guess: a ${category.toLowerCase()} concern${urgent ? ' that may need prompt attention' : ''}. Please confirm manually.`;
+  const review_reasons = ['AI unavailable: this is a keyword-based guess', ...getReviewReasons(message, urgency, confidence_score)];
 
-  return { category, urgency, confidence_score, needs_human_review, summary, reasoning: summary };
+  return { category, urgency, confidence_score, needs_human_review: true, review_reasons, source: 'fallback', summary, reasoning: summary };
 }

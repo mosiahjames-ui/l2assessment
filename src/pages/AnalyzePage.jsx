@@ -28,7 +28,7 @@ function AnalyzePage() {
     
     try {
       // Run categorization (LLM call)
-      const { category, urgency, confidence_score, needs_human_review, summary, reasoning } = await categorizeMessage(message)
+      const { category, urgency, confidence_score, needs_human_review, review_reasons, source, summary, reasoning } = await categorizeMessage(message)
       
       // Get recommended action (template-based)
       const recommendedAction = getRecommendedAction(category)
@@ -39,6 +39,8 @@ function AnalyzePage() {
         urgency,
         confidence_score,
         needs_human_review,
+        review_reasons,
+        source,
         summary,
         recommendedAction,
         reasoning,
@@ -127,6 +129,12 @@ function AnalyzePage() {
         {results && (
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Analysis Results</h2>
+
+            {results.source === 'fallback' && (
+              <div className="mb-4 bg-yellow-50 border border-yellow-300 text-yellow-900 rounded-lg p-3 text-sm">
+                <strong>AI unavailable.</strong> These results are a keyword-based guess. Please review the message yourself.
+              </div>
+            )}
             
             <div className="space-y-4">
               <div>
@@ -163,6 +171,15 @@ function AnalyzePage() {
                 </div>
               </div>
 
+              {results.review_reasons?.length > 0 && (
+                <div>
+                  <div className="text-sm font-semibold text-gray-600 mb-1">Why a person should review this</div>
+                  <ul className="list-disc list-inside text-orange-900 bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm">
+                    {results.review_reasons.map(reason => <li key={reason}>{reason}</li>)}
+                  </ul>
+                </div>
+              )}
+
               <div>
                 <div className="text-sm font-semibold text-gray-600 mb-1">Recommended Action</div>
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
@@ -185,7 +202,7 @@ function AnalyzePage() {
             <div className="mt-6 pt-4 border-t border-gray-200">
               <button
                 onClick={() => {
-                  const text = `Category: ${results.category}\nUrgency: ${results.urgency}\nConfidence: ${Math.round(results.confidence_score * 100)}%\nHuman review: ${results.needs_human_review ? 'Required' : 'Not required'}\nRecommendation: ${results.recommendedAction}\n\nSummary: ${results.summary}`
+                  const text = `Category: ${results.category}\nUrgency: ${results.urgency}\nConfidence: ${Math.round(results.confidence_score * 100)}%\nHuman review: ${results.needs_human_review ? 'Required' + (results.review_reasons?.length ? ' (' + results.review_reasons.join('; ') + ')' : '') : 'Not required'}\nRecommendation: ${results.recommendedAction}\n\nSummary: ${results.summary}`
                   navigator.clipboard.writeText(text)
                   alert('Results copied to clipboard!')
                 }}
